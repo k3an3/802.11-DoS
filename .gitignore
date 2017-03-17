@@ -6,3 +6,4 @@ lib64
 include/
 local/
 env/
+.idea/

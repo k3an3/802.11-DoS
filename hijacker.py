@@ -9,10 +9,10 @@ from hijacker.interface import MonitorInterface, RegularInterface
 from hijacker.threads import ScannerThread
 
 parser = ArgumentParser()
-parser.add_argument('-m', '--monitor', dest='mon_interface', help='The '
+parser.add_argument('mon_interface', help='The '
                                                                   'interface to use for scanning and deauth (must '
                                                                   'support '
-                                                                  'packet injection) (required)')
+                                                                  'packet injection)')
 
 args = parser.parse_args()
 
