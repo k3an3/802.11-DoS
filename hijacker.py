@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 import sys
 from argparse import ArgumentParser
 from time import sleep
@@ -8,6 +9,10 @@ from termcolor import cprint
 from hijacker.interface import MonitorInterface, RegularInterface
 from hijacker.threads import ScannerThread
 
+if os.getuid() != 0:
+    print("Must be root!!! Exiting...")
+    sys.exit()
+
 parser = ArgumentParser()
 parser.add_argument('mon_interface', help='The '
                                                                   'interface to use for scanning and deauth (must '
@@ -16,7 +21,7 @@ parser.add_argument('mon_interface', help='The '
 
 args = parser.parse_args()
 
-mon_interface = MonitorInterface(args.mon_interface, None, True)
+mon_interface = MonitorInterface(args.mon_interface)
 
 scan_thread = ScannerThread(mon_interface)
 print("Enabling monitor mode on interface", mon_interface.name)

@@ -38,6 +38,12 @@ class Interface:
         self.set_up()
         self.monitor_mode = True
 
+    def set_managed_mode(self):
+        self.set_down()
+        subprocess.run(['/sbin/iw', 'dev', self.name, 'set', 'type', 'managed'])
+        self.set_up()
+        self.monitor_mode = False
+
     def set_channel(self, channel):
         # in USA reg domain
         if 1 <= channel <= 11:
@@ -56,6 +62,9 @@ class Interface:
 
 
 class MonitorInterface(Interface):
+    def __init__(self, name, channel=None):
+        super().__init__(name, monitor_mode=True, channel=channel)
+
     def deauth(self, target_mac, count=10, channel=None):
         self.channel_lock.acquire()
         if channel:
