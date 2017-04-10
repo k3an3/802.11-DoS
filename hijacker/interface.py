@@ -1,10 +1,10 @@
+import struct
 import subprocess
 import threading
 
-from scapy.layers.dot11 import Dot11, Dot11Elt
-from termcolor import cprint
+from scapy.layers.dot11 import Dot11, Dot11Elt, sendp
 
-from .core import Client, Target
+from .core import Station, AP
 
 
 class Interface:
@@ -13,8 +13,8 @@ class Interface:
         self.monitor_mode = monitor_mode
         if monitor_mode:
             self.set_monitor_mode()
-        self.clients = []
-        self.targets = []
+        self.stations = []
+        self.aps = []
         self.lock = threading.Lock()
         self.channel_lock = threading.Lock()
         self.sema = threading.Semaphore(0)
@@ -40,6 +40,9 @@ class Interface:
         subprocess.run(['/sbin/iw', 'dev', self.name, 'set', 'type', 'managed'])
         self.set_up()
         self.monitor_mode = False
+
+    def get_frequency(self):
+        return struct.pack("<h", 2407 + (self._channel * 5))
 
     @property
     def channel(self):
@@ -78,32 +81,18 @@ class MonitorInterface(Interface):
                         '-e', self.essid, self.name])
         self.channel_lock.release()
 
-    def scan_clients(self, p):
-        client_mgmt_subtypes = (0, 2, 4)
-        try:
-            if (p.haslayer(Dot11) and p.type == 0 and p.info
-                #    and p.info.decode('utf-8') == self.essid
-                    and p.subtype in client_mgmt_subtypes):
-                if p.addr2 not in [client.mac_addr for client in self.clients]:
-                    cprint("Discovered client {}".format(p.addr2), 'cyan', 'on_grey')
-                    self.lock.acquire()
-                    self.sema.release()
-                    # print(p[Dot11Elt:3].info)
-                    self.clients.append(Client(p.addr2, p[Dot11Elt:3].info))
-                    self.lock.release()
-        except AttributeError:
-            pass
-        except TypeError:
-            pass
-
     def get_new_client(self):
         self.sema.acquire()
-        return next((client for client in self.clients if client.new), None)
+        return next((client for client in self.stations if client.new), None)
 
-    def scan_networks(self, pkt):
+    def inject(self, pkt):
+        sendp(pkt, iface=self.name)
+
+    def scan(self, pkt):
+        client_mgmt_subtypes = (0, 2, 4)
         try:
             if pkt.haslayer(Dot11) and pkt.type == 0 and pkt.subtype == 8:
-                if pkt.addr3 not in [target.bssid for target in self.targets]:
+                if pkt.addr3 not in [target.bssid for target in self.aps]:
                     self.lock.acquire()
                     self.sema.release()
                     # http://stackoverflow.com/a/21664038
@@ -137,8 +126,17 @@ class MonitorInterface(Interface):
                             crypto.add("WEP")
                         else:
                             crypto.add("OPN")
-                    self.targets.append(Target(bssid, essid, crypto, channel, w))
+                    self.aps.append(AP(bssid, essid, crypto, channel, w))
                     #print("Adding", bssid, essid, crypto, channel, self.targets[-1].w)
+                    self.lock.release()
+            elif (pkt.haslayer(Dot11) and pkt.type == 0 and pkt.info
+                  #    and p.info.decode('utf-8') == self.essid
+                  and pkt.subtype in client_mgmt_subtypes):
+                if pkt.addr2 not in [client.mac_addr for client in self.stations]:
+                    self.lock.acquire()
+                    self.sema.release()
+                    # print(p[Dot11Elt:3].info)
+                    self.stations.append(Station(pkt.addr2, pkt[Dot11Elt:3].info, pkt.addr3))
                     self.lock.release()
         except Exception as e:
             print(pkt)
@@ -146,4 +144,4 @@ class MonitorInterface(Interface):
 
     def get_new_target(self):
         self.sema.acquire()
-        return self.targets[-1]
+        return self.aps[-1]

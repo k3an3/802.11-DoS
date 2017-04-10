@@ -1,12 +1,13 @@
-class Client:
-    def __init__(self, mac_addr, channel=None):
+class Station:
+    def __init__(self, mac_addr, channel=None, bssid=None):
         self.mac_addr = mac_addr
         self.new = True
         self.has_internet = False
         self.channel = channel
+        self.bssid = bssid
 
 
-class Target:
+class AP:
     def __init__(self, bssid, essid, encrypt, channel, w=None):
         self.bssid = bssid
         self.essid = essid or '<hidden_ssid>'

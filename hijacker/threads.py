@@ -35,10 +35,11 @@ class ScannerThread(StoppableThread):
             hopper = ChannelHoppingThread(self.interface)
             hopper.start()
         try:
-            sniff(iface=self.interface.name, prn=self.interface.scan_networks,
+            sniff(iface=self.interface.name, prn=self.interface.scan,
                   stopper=self._stopped)
-            hopper.stop()
-            hopper.join()
+            if not self.interface.channel:
+                hopper.stop()
+                hopper.join()
         except OSError as e:
             cprint("Error! The interface {} does not exist!".format(
                 self.interface.name), 'white', 'on_red')
