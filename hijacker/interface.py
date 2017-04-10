@@ -1,9 +1,6 @@
 import subprocess
 import threading
-from time import sleep
 
-from pyping import ping
-from scapy.layers.dhcp import dhcp_request
 from scapy.layers.dot11 import Dot11, Dot11Elt
 from termcolor import cprint
 
@@ -22,7 +19,7 @@ class Interface:
         self.channel_lock = threading.Lock()
         self.sema = threading.Semaphore(0)
         self.essid = essid
-        self.channel = channel
+        self._channel = channel
         if channel:
             self.set_channel(channel)
 
@@ -44,11 +41,19 @@ class Interface:
         self.set_up()
         self.monitor_mode = False
 
+    @property
+    def channel(self):
+        return self._channel
+
+    @channel.setter
+    def channel(self, value):
+        self.set_channel(value)
+
     def set_channel(self, channel):
         # in USA reg domain
         if 1 <= channel <= 11:
             subprocess.run(['/sbin/iw', 'dev', self.name, 'set', 'channel', str(channel)])
-        self.channel = channel
+        self._channel = channel
 
     def set_mac(self, mac):
         self.set_down()
@@ -142,32 +147,3 @@ class MonitorInterface(Interface):
     def get_new_target(self):
         self.sema.acquire()
         return self.targets[-1]
-
-
-class RegularInterface(Interface):
-    def connect(self, essid):
-        subprocess.run(['/sbin/iw', 'dev', self.name, 'connect', essid])
-        while True:
-            status = subprocess.getoutput(
-                ['/sbin/iw', 'dev', self.name, 'link']
-            )
-            print("Status:", status)
-            if status and "Connected" in status:
-                break
-            sleep(0.5)
-        print("Connected")
-        dhcp_request(iface=self.name)
-
-    def disconnect(self):
-        subprocess.run(['/sbin/iw', 'dev', self.name, 'disconnect'])
-
-    def dhcp_request(self):
-        subprocess.run(['/sbin/dhclient', self.name])
-        print(subprocess.Popen(['/bin/ip', 'addr', 'show', self.name])).stdout
-        print(subprocess.Popen(['/bin/ip', 'addr', 'show', self.name])).stderr
-
-    def dhcp_release(self):
-        subprocess.run(['/sbin/dhclient', '-r', self.name])
-
-    def check_connectivity(self, target='8.8.8.8'):
-        return not ping(target).ret_code

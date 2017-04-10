@@ -1,4 +1,3 @@
-git+git://github.com/keaneokelley/pyping.git#egg=pyping
 termcolor
 scapy-python3
 pydhcplib
