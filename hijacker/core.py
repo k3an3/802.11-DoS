@@ -9,6 +9,7 @@ class Station:
 
 class AP:
     def __init__(self, bssid, essid, encrypt, channel, w=None):
+        self.new = True
         self.bssid = bssid
         self.essid = essid or '<hidden_ssid>'
         self.encrypt = encrypt

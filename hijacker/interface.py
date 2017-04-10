@@ -83,7 +83,9 @@ class MonitorInterface(Interface):
 
     def get_new_client(self):
         self.sema.acquire()
-        return next((client for client in self.stations if client.new), None)
+        target = next((client for client in self.stations if client.new), None)
+        target.new = False
+        return target
 
     def inject(self, pkt):
         sendp(pkt, iface=self.name)
@@ -144,4 +146,6 @@ class MonitorInterface(Interface):
 
     def get_new_target(self):
         self.sema.acquire()
-        return self.aps[-1]
+        target = next((ap for ap in self.aps if ap.new), None)
+        target.new = False
+        return target

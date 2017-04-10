@@ -2,7 +2,7 @@ import sys
 import threading
 from time import sleep
 
-from scapy.all import sniff
+from scapy.sendrecv import sniff
 from termcolor import cprint
 
 
@@ -12,8 +12,8 @@ class StoppableThread(threading.Thread):
         self.interface = interface
         self._stop = False
 
-    def _stopped(self):
-        return self.should_stop
+    def _stopped(self, *args):
+        return self._stop
 
     def stop(self):
         self._stop = True
@@ -36,7 +36,7 @@ class ScannerThread(StoppableThread):
             hopper.start()
         try:
             sniff(iface=self.interface.name, prn=self.interface.scan,
-                  stopper=self._stopped)
+                  stop_filter=self._stopped)
             if not self.interface.channel:
                 hopper.stop()
                 hopper.join()
