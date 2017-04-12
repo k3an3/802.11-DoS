@@ -10,24 +10,27 @@ from hijacker.core import AP
 from hijacker.interface import MonitorInterface
 from hijacker.threads import ScannerThread
 
+MACCHANGER_BIN = '/usr/bin/macchanger'
+
 
 def get_aps(mon_interface):
     targets = {}
     seen_essids = set()
-    print("Hit Ctrl-C when ready to select a BSS")
+    print("Hit Ctrl-C when ready to select a target")
     while True:
         try:
             target = mon_interface.get_new_target()
-            seen_essids.add(target.essid)
-            color, msg, n = None, None, None
-            if target.w:
-                n = len(targets)
-                targets[n] = target
-                msg = '| 802.11w: ' + target.w
-                color = 'on_magenta'
-            cprint("{} {} {}".format(target.essid, msg or '',
-                                     '({})'.format(n) if n else ''),
-                   'white', color)
+            if not target.essid in seen_essids:
+                seen_essids.add(target.essid)
+                color, msg, n = None, None, None
+                if target.w:
+                    n = len(targets)
+                    targets[n] = target
+                    msg = '- 802.11w {} ({})'.format(target.w, n)
+                    color = 'on_magenta'
+                if target.essid:
+                    cprint("{} {}".format(target.essid, msg or ''),
+                           'white', color)
         except KeyboardInterrupt:
             return targets
 
@@ -42,6 +45,7 @@ def get_stations(mon_interface):
             clients[n] = client
             cprint("Discovered client {} ({})".format(client.mac_addr, n), 'cyan', 'on_grey')
         except KeyboardInterrupt:
+            print()
             return clients
 
 
@@ -60,33 +64,61 @@ def main():
     args = parser.parse_args()
 
     mon_interface = MonitorInterface(args.mon_interface)
-    print("Enabled monitor mode on interface", mon_interface.name)
-    if args.bssid and args.channel:
-        ap = AP(args.bssid, essid=None, encrypt="WPA2", channel=args.channel)
+    cprint("Enabled monitor mode on interface " + mon_interface.name, 'yellow')
+
+    if not os.path.isfile(MACCHANGER_BIN) or not os.access(MACCHANGER_BIN, os.X_OK):
+        cprint("Warning: " + MACCHANGER_BIN + " not found. MAC spoofing will be disabled.", 'red')
+        macchanger = False
     else:
-        scan_thread = ScannerThread(mon_interface)
-        scan_thread.start()
-        aps = get_aps(mon_interface)
-        scan_thread.stop()
-        scan_thread.join()
+        macchanger = True
+        cprint("Spoofing MAC address", 'grey')
+        mon_interface.spoof_mac()
 
-        while not ap:
-            ap = aps.get(input("Select a target access point from the list"))
-
-        mon_interface.channel = ap.channel
-
-        if args.station:
-            station = args.station
+    try:
+        if args.bssid and args.channel:
+            ap = AP(args.bssid, essid=None, encrypt="WPA2", channel=args.channel)
         else:
+            ap = None
+            scan_thread = ScannerThread(mon_interface)
             scan_thread.start()
-            stations = get_stations(mon_interface)
+            aps = get_aps(mon_interface)
             scan_thread.stop()
             scan_thread.join()
 
-        while not station:
-            station = stations.get(input("Select a target station from the list"))
+            while not ap:
+                try:
+                    ap = aps.get(int(input("\nSelect a target access point from the list:\n")))
+                except ValueError:
+                    pass
 
-        auth_attack(station, ap, mon_interface)
+            mon_interface.channel = ap.channel
+            mon_interface.hop = False
+            mon_interface.bssid = ap.bssid
+
+            if args.station:
+                station = args.station
+            else:
+                station = None
+                scan_thread = ScannerThread(mon_interface)
+                scan_thread.start()
+                stations = get_stations(mon_interface)
+                scan_thread.stop()
+                scan_thread.join()
+
+            while not station:
+                try:
+                    station = stations.get(int(input("\nSelect a target station from the list:\n")))
+                except ValueError:
+                    pass
+
+                auth_attack(station, ap, mon_interface)
+    except KeyboardInterrupt:
+        print()
+        if macchanger:
+            mon_interface.reset_mac()
+            cprint("Restoring MAC address...", 'grey')
+        cprint("Exiting...", 'yellow')
+
 
 if __name__ == '__main__':
     main()

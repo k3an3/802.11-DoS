@@ -10,18 +10,18 @@ class StoppableThread(threading.Thread):
     def __init__(self, interface):
         super().__init__(daemon=True)
         self.interface = interface
-        self._stop = False
+        self._stopper = False
 
     def _stopped(self, *args):
-        return self._stop
+        return self._stopper
 
     def stop(self):
-        self._stop = True
+        self._stopper = True
 
 
 class ChannelHoppingThread(StoppableThread):
     def run(self):
-        while not self._stop:
+        while not self._stopper:
             self.interface.channel_lock.acquire()
             for channel in range(1, 12):
                 self.interface.set_channel(channel)
@@ -31,13 +31,13 @@ class ChannelHoppingThread(StoppableThread):
 
 class ScannerThread(StoppableThread):
     def run(self):
-        if not self.interface.channel:
+        if self.interface.hop:
             hopper = ChannelHoppingThread(self.interface)
             hopper.start()
         try:
             sniff(iface=self.interface.name, prn=self.interface.scan,
                   stop_filter=self._stopped)
-            if not self.interface.channel:
+            if self.interface.hop:
                 hopper.stop()
                 hopper.join()
         except OSError as e:

