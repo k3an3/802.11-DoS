@@ -12,7 +12,7 @@ class AP:
         self.new = True
         self.bssid = bssid
         self.essid = essid or '<hidden_ssid>'
-        if essid.encode() == b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00':
+        if self.essid.encode() == b'\x00'*12:
             self.essid = '<hidden_ssid>'
         self.encrypt = encrypt
         self.channel = channel

