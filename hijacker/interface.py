@@ -95,7 +95,8 @@ class MonitorInterface(Interface):
             cprint("DEAUTH!!!", 'red')
             for j in range(burst_count):
                 self.inject(pkt)
-            sleep(1)
+            if count > 1:
+                sleep(1)
         self.channel_lock.release()
 
     def get_new_client(self) -> Station:

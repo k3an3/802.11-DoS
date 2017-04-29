@@ -17,7 +17,7 @@ def get_aps(mon_interface):
     targets = {}
     print("Hit Ctrl-C when ready to select a target")
     print(" {: >3}  {: <32}  {: <17}  {: <4}  {: >8}".format("#", "ESSID", "BSSID", "SEC", "80211.w"))
-    print("-"*73)
+    print("-" * 73)
     while True:
         try:
             target = mon_interface.get_new_target()
@@ -50,6 +50,15 @@ def get_stations(mon_interface):
             return clients
 
 
+def print_attacks():
+    print("1 - Deauth")
+    print("2 - FakeAuth attack")
+    print("3 - CTS NAV attack")
+    print("4 - SA Query attack")
+    print("5 - Forged Assoc. attack")
+    print("6 - EAPOL Deauth attack")
+
+
 def main():
     if os.getuid() != 0:
         print("Must be root!!! Exiting...")
@@ -65,7 +74,13 @@ def main():
     parser.add_argument('-a', '--attack', dest='attack', type=int, required=False, help="The attack to perform.")
     parser.add_argument('-x', '--option', dest='option', required=False, help="An optional parameter to pass to the "
                                                                               "attack.")
+    parser.add_argument('-l', action='store_true', required=False, help="List available attacks and exit.")
+
     args = parser.parse_args()
+
+    if args.l:
+        print_attacks()
+        quit()
 
     mon_interface = MonitorInterface(args.mon_interface)
     cprint("Enabled monitor mode on interface " + mon_interface.name, 'yellow')
@@ -117,6 +132,7 @@ def main():
 
         attack = args.attack
         while not attack:
+            print_attacks()
             try:
                 attack = int(input("\nSelect an attack:\n"))
             except ValueError:
@@ -134,7 +150,7 @@ def main():
         elif attack == 5:
             forged_1(mon_interface, ap, station)
         elif attack == 6:
-            eapol_attack_deauth(mon_interface, ap, station)
+            eapol_attack_deauth(mon_interface, ap, station, spam=args.option)
 
     except KeyboardInterrupt:
         print()
