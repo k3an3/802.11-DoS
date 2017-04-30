@@ -103,8 +103,8 @@ class MonitorInterface(Interface):
         target.new = False
         return target
 
-    def inject(self, pkt):
-        sendp(pkt, iface=self.name, verbose=False)
+    def inject(self, pkt, inter=0):
+        sendp(pkt, iface=self.name, inter=inter, verbose=False)
 
     def scan(self, pkt):
         client_mgmt_subtypes = (0, 2, 4)

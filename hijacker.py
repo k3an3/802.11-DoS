@@ -68,7 +68,8 @@ def main():
     parser.add_argument('mon_interface', help='The interface to use for scanning and deauth (must '
                                               'support packet injection)')
     parser.add_argument('-b', '--bssid', dest='bssid', required=False,
-                        help='The target BSSID. Must support 802.11w.')
+                        help='The target BSSID.')
+    parser.add_argument('-e', '--essid', dest='essid', required=False, help="Target ESSID, required by some attacks.")
     parser.add_argument('-c', '--channel', dest='channel', type=int, required=False, help='The target BSS channel.')
     parser.add_argument('-s', '--station', dest='station', required=False, help="The MAC address of a target station.")
     parser.add_argument('-a', '--attack', dest='attack', type=int, required=False, help="The attack to perform.")
@@ -152,7 +153,7 @@ def main():
         elif attack == 6:
             eapol_attack_deauth(mon_interface, ap, station, spam=args.option)
         elif attack == 7:
-            dfs_hop_attack(mon_interface, ap, ap.essid)
+            dfs_hop_attack(mon_interface, ap, args.essid or ap.essid, int(args.option))
 
     except KeyboardInterrupt:
         print()

