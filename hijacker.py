@@ -57,6 +57,7 @@ def print_attacks():
     print("4 - SA Query attack")
     print("5 - Forged Assoc. attack")
     print("6 - EAPOL Deauth attack")
+    print("7 - DFS Channel Hop attack")
 
 
 def main():
@@ -81,7 +82,7 @@ def main():
 
     if args.l:
         print_attacks()
-        quit()
+        raise SystemExit
 
     mon_interface = MonitorInterface(args.mon_interface)
     cprint("Enabled monitor mode on interface " + mon_interface.name, 'yellow')

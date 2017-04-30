@@ -89,7 +89,8 @@ def dfs_hop_attack(interface: MonitorInterface, ap: AP, essid: str, channel: int
               '\xcc\x00'  # Supports and requires MFP
           )) / Dot11Elt(ID=37, len=3, info=bytes([0, channel, 1]))
     while True:
-        interface.inject(pkt, 0.5)
+        interface.inject(pkt)
+        sleep(0.3)
 
 
 class Dot11EltRates(Packet):
