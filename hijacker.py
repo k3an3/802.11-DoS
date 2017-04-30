@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 
 from termcolor import cprint
 
-from hijacker.attacks import auth_attack, sa_query_attack, cts_nav_attack, forged_1, eapol_attack_deauth
+from hijacker.attacks import auth_attack, sa_query_attack, cts_nav_attack, forged_1, eapol_attack_deauth, dfs_hop_attack
 from hijacker.core import AP, Station
 from hijacker.interface import MonitorInterface
 from hijacker.threads import ScannerThread
@@ -151,6 +151,8 @@ def main():
             forged_1(mon_interface, ap, station)
         elif attack == 6:
             eapol_attack_deauth(mon_interface, ap, station, spam=args.option)
+        elif attack == 7:
+            dfs_hop_attack(mon_interface, ap, ap.essid)
 
     except KeyboardInterrupt:
         print()
