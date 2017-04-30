@@ -144,7 +144,7 @@ def main():
         elif attack == 2:
             auth_attack(mon_interface, station, ap)
         elif attack == 3:
-            cts_nav_attack(mon_interface, station.mac_addr, ap)
+            cts_nav_attack(mon_interface)
         elif attack == 4:
             sa_query_attack(mon_interface, ap, station)
         elif attack == 5:
