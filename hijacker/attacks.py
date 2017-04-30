@@ -22,7 +22,7 @@ def auth_attack(interface, sta, ap):
         cprint("ZZZ", 'blue')
         interface.inject(pkt)
         pkt.SC += 1
-        sleep(1)
+        sleep(0.3)
 
 
 def forged_1(interface, ap, sta):

