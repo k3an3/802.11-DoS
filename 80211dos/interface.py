@@ -94,7 +94,7 @@ class MonitorInterface(Interface):
             for j in range(burst_count):
                 self.inject(pkt)
             if count > 1:
-                sleep(1)
+                sleep(.1)
         self.channel_lock.release()
 
     def get_new_client(self) -> Station:
