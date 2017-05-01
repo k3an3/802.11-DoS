@@ -1,13 +1,14 @@
 from time import sleep
 
-from hijacker.core import Station, AP
-from hijacker.interface import MonitorInterface
 from scapy.contrib.wpa_eapol import WPA_key
 from scapy.fields import ByteField
 from scapy.layers.dot11 import Dot11, Dot11Auth, RadioTap, Dot11AssoReq, EAPOL, Dot11Elt, Dot11Beacon
 from scapy.packet import Packet
 from scapy.sendrecv import sniff
 from termcolor import cprint
+
+from dos80211.core import Station, AP
+from dos80211.interface import MonitorInterface
 
 WPA_KEY_INFO_INSTALL = 64
 WPA_KEY_INFO_ACK = 128
@@ -94,12 +95,7 @@ def dfs_hop_attack(interface: MonitorInterface, ap: AP, essid: str, channel: int
 
 
 class Dot11EltRates(Packet):
-    """
-    Our own definition for the supported rates field
-    """
     name = "802.11 Rates Information Element"
-    # Our Test AP has the rates 6, 9, 12 (B), 18, 24, 36, 48 and 54, with 12
-    # Mbps as the basic rate - which does not have to concern us.
     supported_rates = [0x0c, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6c]
 
     fields_desc = [
