@@ -7,8 +7,8 @@ from scapy.packet import Packet
 from scapy.sendrecv import sniff
 from termcolor import cprint
 
-from dos80211.core import Station, AP
-from dos80211.interface import MonitorInterface
+from pywiface.models import Station, AP
+from pywiface.interface import MonitorInterface
 
 WPA_KEY_INFO_INSTALL = 64
 WPA_KEY_INFO_ACK = 128

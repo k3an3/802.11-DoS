@@ -4,8 +4,8 @@ import sys
 from argparse import ArgumentParser
 
 from dos80211.attacks import auth_attack, sa_query_attack, cts_nav_attack, forged_1, eapol_attack_deauth, dfs_hop_attack
-from dos80211.core import AP, Station
-from dos80211.interface import MonitorInterface
+from pywiface.models import AP, Station
+from pywiface.interface import MonitorInterface
 from dos80211.threads import ScannerThread
 from termcolor import cprint
 
